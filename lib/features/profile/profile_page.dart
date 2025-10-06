@@ -13,7 +13,8 @@ class ProfilePage extends StatelessWidget {
     final user = app.user ?? {};
 
     return Scaffold(
-      appBar: CustomHeader(showBack: true),
+      appBar: CustomHeader(),
+      drawer: const CustomDrawer(),
       body: user.isEmpty
           ? const Center(child: Text("Нет данных пользователя"))
           : Padding(

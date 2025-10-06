@@ -4,6 +4,8 @@ import '../../core/web_container.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'componets/share.dart';
+import '../../core/app_state.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -54,16 +56,17 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
           : Builder(
               builder: (context) => IconButton(
                 icon: const Icon(Icons.menu),
-                onPressed: () {
-                  Scaffold.of(context).openDrawer();
-                },
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
       title: Row(
         children: [
-          SvgPicture.asset(
-            "assets/images/logo.svg",
-            height: 24,
+          GestureDetector(
+            onTap: () => Navigator.pushReplacementNamed(context, Routes.main),
+            child: SvgPicture.asset(
+              "assets/images/logo.svg",
+              height: 24,
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -71,32 +74,35 @@ class CustomHeader extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.share),
-          onPressed: () {
-            showSharingPopup(context);
-          },
+          onPressed: () => showSharingPopup(context),
         ),
         IconButton(
           icon: const Icon(Icons.notifications_none),
-          onPressed: () {
-            Navigator.pushNamed(context, Routes.notification);
-          },
+          onPressed: () => Navigator.pushNamed(context, Routes.notification),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, Routes.profile);
-            },
-            child: const CircleAvatar(
+            onTap: () => Navigator.pushNamed(context, Routes.profile),
+            child: CircleAvatar(
               radius: 16,
-              backgroundImage: NetworkImage(
-                'https://backoffice.aplgo.com/userfiles/avatars/33224/c6ea9042030ede1e270b1c169011acff.jpeg',
-              ),
+              backgroundImage: _getUserAvatar(context),
             ),
           ),
         ),
       ],
     );
+  }
+
+  ImageProvider _getUserAvatar(BuildContext context) {
+    final app = context.read<AppState>();
+    final user = app.user ?? {};
+    final avatarUrl = user["image"];
+    if (avatarUrl != null && avatarUrl.toString().isNotEmpty) {
+      return NetworkImage("https://backoffice.aplgo.com$avatarUrl");
+    } else {
+      return const AssetImage("assets/images/logo.png");
+    }
   }
 
   @override

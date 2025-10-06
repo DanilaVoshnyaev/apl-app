@@ -56,6 +56,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     return Scaffold(
       appBar: CustomHeader(),
+      drawer: const CustomDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

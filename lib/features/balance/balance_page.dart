@@ -42,6 +42,7 @@ class _BalancePageState extends State<BalancePage> {
 
     return Scaffold(
       appBar: CustomHeader(showBack: true),
+      drawer: const CustomDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _balanceList == null
