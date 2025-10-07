@@ -41,7 +41,7 @@ class _BalancePageState extends State<BalancePage> {
     final app = context.watch<AppState>();
 
     return Scaffold(
-      appBar: CustomHeader(showBack: true),
+      appBar: CustomHeader(),
       drawer: const CustomDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

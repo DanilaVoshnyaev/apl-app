@@ -50,9 +50,6 @@ class ProfilePage extends StatelessWidget {
                   if (user["phone"] != null)
                     Text(user["phone"],
                         style: const TextStyle(color: Colors.grey)),
-
-                  const Spacer(),
-
                   Row(
                     children: [
                       const Icon(Icons.language, color: Colors.grey),
@@ -81,7 +78,7 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ],
                   ),
-
+                  const Spacer(),
                   SizedBox(
                     width: double.infinity,
                     height: 48,

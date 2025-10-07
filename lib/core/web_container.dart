@@ -47,7 +47,7 @@ class _WebContainerState extends State<WebContainer> {
         children: [
           InAppWebView(
             initialSettings: InAppWebViewSettings(
-              javaScriptEnabled: false,
+              javaScriptEnabled: true,
               cacheEnabled: false,
               useShouldOverrideUrlLoading: true,
               mediaPlaybackRequiresUserGesture: false,
