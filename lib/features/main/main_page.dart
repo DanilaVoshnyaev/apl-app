@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:url_launcher/url_launcher.dart';
-
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/web_container.dart';
 import '../../core/app_state.dart';
-import '../../core/push.dart';
 import '../header.dart';
 
 class MainPage extends StatefulWidget {
@@ -27,17 +26,24 @@ class _MainPageState extends State<MainPage> {
   Future<void> _loadBonusData() async {
     final app = context.read<AppState>();
     final result = await app.getBonusActivityData();
+    if (!mounted) return;
     setState(() {
       bonusData = result;
       loadingBonus = false;
     });
   }
 
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  Future<void> _openUrl(BuildContext context, String url,
+      {String? title}) async {
+    if (url.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WebContainer(
+          url: url,
+          title: title ?? 'Просмотр',
+        ),
+      ),
+    );
   }
 
   @override
@@ -51,18 +57,20 @@ class _MainPageState extends State<MainPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===== БОНУСНАЯ АКТИВНОСТЬ =====
             const Divider(height: 32),
             Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(app.L('bonus_activiti'),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                app.L('bonus_activiti'),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
             if (loadingBonus)
               const Center(child: CircularProgressIndicator())
             else if (bonusData == null)
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Text(app.L('fail_load_data')),
               )
             else
@@ -81,9 +89,12 @@ class _MainPageState extends State<MainPage> {
 
             // ===== НОВОСТИ =====
             Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(app.L('news_company'),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                app.L('news_company'),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
             FutureBuilder<List<Map<String, dynamic>>>(
               future: app.fetchNews(),
@@ -94,107 +105,15 @@ class _MainPageState extends State<MainPage> {
                 final news = snapshot.data ?? [];
                 if (news.isEmpty) {
                   return Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Text(app.L('not_news')),
                   );
                 }
 
                 return Column(
-                  children: news.map((item) {
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      color: Colors.white,
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (ctx) => DraggableScrollableSheet(
-                              expand: false,
-                              builder: (ctx, controller) {
-                                return SingleChildScrollView(
-                                  controller: controller,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(item['title'] ?? '',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .headlineSmall),
-                                        Image.network(
-                                          "https://backoffice.aplgo.com${item["image"]}",
-                                          width: double.infinity,
-                                          height: 180,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const Icon(Icons.broken_image),
-                                          loadingBuilder:
-                                              (context, child, progress) {
-                                            if (progress == null) return child;
-                                            return const Center(
-                                                child:
-                                                    CircularProgressIndicator());
-                                          },
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(item['created'] ?? '',
-                                            style: const TextStyle(
-                                                color: Colors.grey)),
-                                        const SizedBox(height: 16),
-                                        Html(data: item['text'] ?? ''),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.network(
-                              "https://backoffice.aplgo.com${item["image"]}",
-                              width: double.infinity,
-                              height: 180,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image),
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const Center(
-                                    child: CircularProgressIndicator());
-                              },
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item['title'] ?? 'Без названия',
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 8),
-                                  Text(item['created'] ?? '',
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: news
+                      .map((item) => buildNewsOrPromoCard(context, item))
+                      .toList(),
                 );
               },
             ),
@@ -202,9 +121,12 @@ class _MainPageState extends State<MainPage> {
 
             // ===== ПРОМО =====
             Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(app.L('promo_company'),
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                app.L('promo_company'),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
             FutureBuilder<List<Map<String, dynamic>>>(
               future: app.fetchPromo(),
@@ -212,114 +134,97 @@ class _MainPageState extends State<MainPage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final news = snapshot.data ?? [];
-                if (news.isEmpty) {
+                final promo = snapshot.data ?? [];
+                if (promo.isEmpty) {
                   return Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Text(app.L('not_promo')),
                   );
                 }
 
                 return Column(
-                  children: news.map((item) {
-                    return Card(
-                      color: Colors.white,
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (ctx) => DraggableScrollableSheet(
-                              expand: false,
-                              builder: (ctx, controller) {
-                                return SingleChildScrollView(
-                                  controller: controller,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(item['title'] ?? '',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .headlineSmall),
-                                        Image.network(
-                                          "https://backoffice.aplgo.com${item["image"]}",
-                                          width: double.infinity,
-                                          height: 180,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                              const Icon(Icons.broken_image),
-                                          loadingBuilder:
-                                              (context, child, progress) {
-                                            if (progress == null) return child;
-                                            return const Center(
-                                                child:
-                                                    CircularProgressIndicator());
-                                          },
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(item['created'] ?? '',
-                                            style: const TextStyle(
-                                                color: Colors.grey)),
-                                        const SizedBox(height: 16),
-                                        Html(data: item['text'] ?? ''),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Image.network(
-                              "https://backoffice.aplgo.com${item["image"]}",
-                              width: double.infinity,
-                              height: 180,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
-                                  const Icon(Icons.broken_image),
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return const Center(
-                                    child: CircularProgressIndicator());
-                              },
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(item['title'] ?? 'Без названия',
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 8),
-                                  Text(item['created'] ?? '',
-                                      style:
-                                          const TextStyle(color: Colors.grey)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                  children: promo
+                      .map((item) => buildNewsOrPromoCard(context, item))
+                      .toList(),
                 );
               },
             ),
             const Divider(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildNewsOrPromoCard(BuildContext context, Map<String, dynamic> item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => DraggableScrollableSheet(
+            expand: false,
+            builder: (ctx, controller) => SingleChildScrollView(
+              controller: controller,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item['title'] ?? '',
+                        style: Theme.of(context).textTheme.headlineSmall),
+                    const SizedBox(height: 8),
+                    CachedNetworkImage(
+                      imageUrl: "https://backoffice.aplgo.com${item["image"]}",
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          const Center(child: CircularProgressIndicator()),
+                      errorWidget: (_, __, ___) =>
+                          const Icon(Icons.broken_image),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(item['created'] ?? '',
+                        style: const TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    Html(data: item['text'] ?? ''),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CachedNetworkImage(
+              imageUrl: "https://backoffice.aplgo.com${item["image"]}",
+              width: double.infinity,
+              height: 180,
+              fit: BoxFit.cover,
+              placeholder: (_, __) =>
+                  const Center(child: CircularProgressIndicator()),
+              errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item['title'] ?? 'Без названия',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(item['created'] ?? '',
+                      style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -332,10 +237,8 @@ class _MainPageState extends State<MainPage> {
     return Card(
       color: status ? Colors.green[50] : Colors.red[50],
       child: ExpansionTile(
-        leading: Icon(
-          status ? Icons.check_circle : Icons.cancel,
-          color: status ? Colors.green : Colors.red,
-        ),
+        leading: Icon(status ? Icons.check_circle : Icons.cancel,
+            color: status ? Colors.green : Colors.red),
         title: Text(monthData['text'] ?? title),
         children: [
           if ((monthData['description'] as String?)?.isNotEmpty ?? false)
@@ -346,7 +249,7 @@ class _MainPageState extends State<MainPage> {
             ),
           buildSelfActivity(monthData['self-activity']),
           ...(monthData['branches'] as List<dynamic>)
-              .map((branch) => buildBranch(branch))
+              .map((b) => buildBranch(b))
               .toList(),
         ],
       ),
@@ -357,10 +260,8 @@ class _MainPageState extends State<MainPage> {
     if (selfActivity == null) return const SizedBox.shrink();
     final status = selfActivity['status'] == true;
     return ExpansionTile(
-      leading: Icon(
-        status ? Icons.check_box : Icons.check_box_outline_blank,
-        color: status ? Colors.green : Colors.red,
-      ),
+      leading: Icon(status ? Icons.check_box : Icons.check_box_outline_blank,
+          color: status ? Colors.green : Colors.red),
       title: Text(selfActivity['text'] ?? "Личная активность"),
       children: [
         if ((selfActivity['description'] as String?)?.isNotEmpty ?? false)
@@ -374,9 +275,11 @@ class _MainPageState extends State<MainPage> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: ElevatedButton(
-              onPressed: () {
-                _openUrl(selfActivity['button']['link']);
-              },
+              onPressed: () => _openUrl(
+                context,
+                selfActivity['button']['link'],
+                title: selfActivity['button']['text'],
+              ),
               child: Text(selfActivity['button']['text']),
             ),
           ),
@@ -387,10 +290,8 @@ class _MainPageState extends State<MainPage> {
   Widget buildBranch(Map<String, dynamic> branch) {
     final status = branch['status'] == true;
     return ExpansionTile(
-      leading: Icon(
-        status ? Icons.check_box : Icons.check_box_outline_blank,
-        color: status ? Colors.green : Colors.red,
-      ),
+      leading: Icon(status ? Icons.check_box : Icons.check_box_outline_blank,
+          color: status ? Colors.green : Colors.red),
       title: Text(branch['text']),
       children: [
         if ((branch['description'] as String?)?.isNotEmpty ?? false)
@@ -404,9 +305,11 @@ class _MainPageState extends State<MainPage> {
           Padding(
             padding: const EdgeInsets.all(8),
             child: TextButton(
-              onPressed: () {
-                _openUrl(branch['button']['link']);
-              },
+              onPressed: () => _openUrl(
+                context,
+                branch['button']['link'],
+                title: branch['button']['text'],
+              ),
               child: Text(branch['button']['text']),
             ),
           ),
@@ -461,9 +364,10 @@ class _MainPageState extends State<MainPage> {
             isScrollable: true,
             tabs: sortedKeys.map((key) {
               return Tab(
-                  text: key == 'all'
-                      ? partnersList['text']['branch-all']
-                      : "${partnersList['text']['branch']} ${key.replaceAll("branch_", "")}");
+                text: key == 'all'
+                    ? partnersList['text']['branch-all']
+                    : "${partnersList['text']['branch']} ${key.replaceAll("branch_", "")}",
+              );
             }).toList(),
           ),
           SizedBox(
@@ -473,11 +377,12 @@ class _MainPageState extends State<MainPage> {
                 final partners = branches[key]['list'] as List;
                 return ListView.builder(
                   itemCount: partners.length,
-                  itemBuilder: (context, i) {
+                  itemBuilder: (_, i) {
                     final partner = partners[i];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: NetworkImage(partner['image']),
+                        backgroundImage:
+                            CachedNetworkImageProvider(partner['image']),
                       ),
                       title: Text("${partner['login']} ${partner['fio']}"),
                       subtitle: Row(

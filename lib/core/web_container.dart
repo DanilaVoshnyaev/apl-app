@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'app_state.dart';
 import 'package:provider/provider.dart';
+import 'app_state.dart'; // импорт своего состояния
 
 class WebContainer extends StatefulWidget {
-  final String url; // конечная страница после авторизации
+  final String url;
   final String title;
 
   const WebContainer({
@@ -18,52 +18,35 @@ class WebContainer extends StatefulWidget {
 }
 
 class _WebContainerState extends State<WebContainer> {
-  InAppWebViewController? _controller;
-  double _progress = 0;
-
-  String _buildUrlWithAuth(AppState appState) {
-    final token = appState.token ?? "";
-    final login = (appState.user?['login'] ?? "").toString();
-    const devid = "auth_app";
-
-    final uri = Uri.parse(widget.url).replace(queryParameters: {
-      "token": token,
-      "login_as_partner": login,
-      "devid": devid,
-      "letmein": 'Ncb4VNysLz',
-    });
-
-    return uri.toString();
-  }
+  InAppWebViewController? webController;
+  double progress = 0;
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final authorizedUrl = _buildUrlWithAuth(appState);
+    final langId = appState.langId;
+
+    final uri = Uri.parse(widget.url).replace(
+      queryParameters: {
+        ...Uri.parse(widget.url).queryParameters,
+        'SET_LANG_ID': langId.toString(),
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: Stack(
         children: [
           InAppWebView(
+            initialUrlRequest: URLRequest(url: WebUri(uri.toString())),
             initialSettings: InAppWebViewSettings(
               javaScriptEnabled: true,
-              cacheEnabled: false,
-              useShouldOverrideUrlLoading: true,
               mediaPlaybackRequiresUserGesture: false,
-              useHybridComposition: true,
+              useHybridComposition: false,
             ),
-            onWebViewCreated: (controller) async {
-              _controller = controller;
-              await controller.loadUrl(
-                urlRequest: URLRequest(url: WebUri(authorizedUrl)),
-              );
-            },
-            onLoadStop: (controller, url) async {
-              setState(() => _progress = 1);
-            },
-            onProgressChanged: (controller, progress) {
-              setState(() => _progress = progress / 100);
+            onWebViewCreated: (controller) => webController = controller,
+            onProgressChanged: (controller, progressValue) {
+              setState(() => progress = progressValue / 100);
             },
             onReceivedServerTrustAuthRequest: (controller, challenge) async {
               return ServerTrustAuthResponse(
@@ -71,7 +54,7 @@ class _WebContainerState extends State<WebContainer> {
               );
             },
           ),
-          if (_progress < 1) LinearProgressIndicator(value: _progress),
+          if (progress < 1.0) LinearProgressIndicator(value: progress),
         ],
       ),
     );

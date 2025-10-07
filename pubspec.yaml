@@ -1,5 +1,5 @@
 name: apl_app
-description: Hybrid offline app with PWA pages, auth, push, biometrics
+description: Hybrid offline app with PWA pages, auth, pus
 publish_to: "none"
 version: 1.0.0+1
 
@@ -34,6 +34,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   hive_generator: ^2.0.1
   build_runner: ^2.4.13
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -42,3 +43,10 @@ flutter:
     - assets/images/news.jpeg
     - assets/images/logo.png
     - assets/images/logo.svg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/favicons/android-chrome-512x512.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/favicons/android-chrome-512x512.png"

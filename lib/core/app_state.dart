@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
-import 'offline.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'offline.dart';
 
 class AppState extends ChangeNotifier {
   final Map<String, dynamic> config;
@@ -13,32 +13,33 @@ class AppState extends ChangeNotifier {
   bool _isAuthorized = false;
   bool _initialized = false;
   String? _lastError;
-  Map<String, dynamic>? _user;
 
-  Map<String, String> _translations = {};
-
-  Map<String, String> get translations => _translations;
-  int _langId = 1;
-
-  String? _lastLogin;
-  String? _lastPassword;
-
-  /// --- Геттеры ---
   String? get lastError => _lastError;
 
-  bool get isAuthorized => _isAuthorized;
-
-  Map<String, dynamic>? get user => _user;
+  Map<String, dynamic>? _user;
+  Map<String, String> _translations = {};
+  int _langId = 1;
+  bool _quickLoginEnabled = false;
+  bool _loadingTranslations = false;
 
   String? get token => _token;
 
+  bool get offline => _offline;
+
+  bool get isAuthorized => _isAuthorized;
+
   bool get initialized => _initialized;
 
-  bool get offline => _offline;
+  bool get quickLoginEnabled => _quickLoginEnabled;
+
+  bool get loadingTranslations => _loadingTranslations;
+
+  Map<String, String> get translations => _translations;
+
+  Map<String, dynamic>? get user => _user;
 
   int get langId => _langId;
 
-  /// базовый URL API (из конфига или дефолт)
   final Uri _baseUri;
 
   AppState({required this.config})
@@ -49,10 +50,6 @@ class AppState extends ChangeNotifier {
         );
 
   Uri get baseUri => _baseUri;
-
-  bool _quickLoginEnabled = false;
-
-  bool get quickLoginEnabled => _quickLoginEnabled;
 
   Future<void> setQuickLoginEnabled(bool enabled) async {
     _quickLoginEnabled = enabled;
@@ -70,10 +67,6 @@ class AppState extends ChangeNotifier {
     _offline = v;
     notifyListeners();
   }
-
-  bool _loadingTranslations = false;
-
-  bool get loadingTranslations => _loadingTranslations;
 
   Future<void> loadTranslations() async {
     _loadingTranslations = true;
@@ -108,32 +101,90 @@ class AppState extends ChangeNotifier {
     await loadTranslations();
   }
 
-  /// --- Балансы пользователя ---
-  Future<Map<String, dynamic>?> fetchBalances() async {
+  // -------------------- баланс с кэшем --------------------
+
+  Future<Map<String, dynamic>?> fetchBalances(
+      {bool forceReload = false}) async {
+    final online = await Offline.hasNetwork();
+    if (!online && !forceReload) {
+      final cached = await Offline.readCache<Map<String, dynamic>>('balance');
+      return cached;
+    }
     try {
       final data = await _post(
         body: {
           'source': 'aplshop',
           'action': 'GetPartnerBalance',
-          'token': _token ?? '',
+          'token': _token ?? ''
         },
-        headers: {
-          'Authorization': 'Bearer ${_token ?? ''}',
-        },
+        headers: {'Authorization': 'Bearer ${_token ?? ''}'},
       );
-
       if (data['status'] == 'OK' && data['balance'] != null) {
+        await Offline.saveCache('balance', data);
         return Map<String, dynamic>.from(data);
-      } else {
-        debugPrint('Ошибка загрузки баланса: ${data['message']}');
       }
     } catch (e) {
       debugPrint('Ошибка получения баланса: $e');
     }
-    return null;
+    return await Offline.readCache<Map<String, dynamic>>('balance');
   }
 
-  /// Универсальный POST-запрос
+  // -------------------- новости с кэшем --------------------
+
+  Future<List<Map<String, dynamic>>> fetchNews(
+      {bool forceReload = false}) async {
+    final online = await Offline.hasNetwork();
+    if (!online && !forceReload) {
+      final cached = await Offline.readCache<List>('news');
+      return cached?.cast<Map<String, dynamic>>() ?? [];
+    }
+    try {
+      final data = await _post(body: {
+        'source': 'aplshop',
+        'action': 'GetNews',
+        'token': _token ?? '',
+      });
+      if (data['status'] == 'OK' && data['news'] != null) {
+        final list = (data['news'] as List).cast<Map<String, dynamic>>();
+        await Offline.saveCache('news', list);
+        return list;
+      }
+    } catch (e) {
+      debugPrint('Ошибка загрузки новостей: $e');
+    }
+    final cached = await Offline.readCache<List>('news');
+    return cached?.cast<Map<String, dynamic>>() ?? [];
+  }
+
+  // -------------------- промо с кэшем --------------------
+
+  Future<List<Map<String, dynamic>>> fetchPromo(
+      {bool forceReload = false}) async {
+    final online = await Offline.hasNetwork();
+    if (!online && !forceReload) {
+      final cached = await Offline.readCache<List>('promo');
+      return cached?.cast<Map<String, dynamic>>() ?? [];
+    }
+    try {
+      final data = await _post(body: {
+        'source': 'aplshop',
+        'action': 'GetPromo',
+        'token': _token ?? '',
+      });
+      if (data['status'] == 'OK' && data['promo'] != null) {
+        final list = (data['promo'] as List).cast<Map<String, dynamic>>();
+        await Offline.saveCache('promo', list);
+        return list;
+      }
+    } catch (e) {
+      debugPrint('Ошибка загрузки промо: $e');
+    }
+    final cached = await Offline.readCache<List>('promo');
+    return cached?.cast<Map<String, dynamic>>() ?? [];
+  }
+
+  // -------------------- универсальный POST --------------------
+
   Future<Map<String, dynamic>> _post({
     required Map<String, String> body,
     Map<String, String>? headers,
@@ -145,20 +196,16 @@ class AppState extends ChangeNotifier {
       'SET_LANG_ID': '$_langId',
       'letmein': 'Ncb4VNysLz',
     };
-
     final uri = _baseUri.replace(queryParameters: mergedQuery);
-
-    final response = await http.post(
+    final r = await http.post(
       uri,
       body: body,
-      headers: {
-        'User-Agent': 'aplgo.com bot v1.2.1',
-        if (headers != null) ...headers,
-      },
+      headers: {'User-Agent': 'aplgo.com bot v1.2.1', ...?headers},
     );
-
-    return json.decode(response.body) as Map<String, dynamic>;
+    return json.decode(r.body) as Map<String, dynamic>;
   }
+
+  // -------------------- авторизация --------------------
 
   Future<void> loginWithPassword(String phone, String password) async {
     _offline = !(await Offline.hasNetwork());
@@ -166,7 +213,6 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     try {
       final data = await _post(
         body: {
@@ -182,13 +228,11 @@ class AppState extends ChangeNotifier {
               'AIgL0HTUT2aYsyrYoxkLbPGaiHLpHjWjg3B1ywHGMQS2ctXrTvP6e6XTv9dI47ys'
         },
       );
-
       if (data['status'] == 'OK') {
         _token = data['bearerToken'];
         _user = Map<String, dynamic>.from(data['user_data']);
         _isAuthorized = true;
         _lastError = null;
-
         final box = await Hive.openBox('auth');
         await box.put('token', _token);
         await box.put('user', _user);
@@ -200,57 +244,21 @@ class AppState extends ChangeNotifier {
       _isAuthorized = false;
       _lastError = 'Ошибка соединения: $e';
     }
-
     notifyListeners();
   }
 
-  /// --- Выход ---
+  // -------------------- выход --------------------
+
   Future<void> logout() async {
     final box = await Hive.openBox('auth');
     await box.clear();
-
     final settingsBox = await Hive.openBox('settings');
     await settingsBox.put('quickLogin', false);
-
     _isAuthorized = false;
     _quickLoginEnabled = false;
     _token = null;
     _user = null;
     notifyListeners();
-  }
-
-  /// --- Новости ---
-  Future<List<Map<String, dynamic>>> fetchNews() async {
-    try {
-      final data = await _post(body: {
-        'source': 'aplshop',
-        'action': 'GetNews',
-        'token': _token ?? '',
-      });
-      if (data['status'] == 'OK' && data['news'] != null) {
-        return (data['news'] as List).cast<Map<String, dynamic>>();
-      }
-    } catch (e) {
-      debugPrint('Ошибка загрузки новостей: $e');
-    }
-    return [];
-  }
-
-  /// --- Промо ---
-  Future<List<Map<String, dynamic>>> fetchPromo() async {
-    try {
-      final data = await _post(body: {
-        'source': 'aplshop',
-        'action': 'GetPromo',
-        'token': _token ?? '',
-      });
-      if (data['status'] == 'OK' && data['promo'] != null) {
-        return (data['promo'] as List).cast<Map<String, dynamic>>();
-      }
-    } catch (e) {
-      debugPrint('Ошибка загрузки промоушенов: $e');
-    }
-    return [];
   }
 
   Future<List<Map<String, dynamic>>> fetchOrders() async {
@@ -312,10 +320,8 @@ class AppState extends ChangeNotifier {
     final box = await Hive.openBox('auth');
     final savedToken = box.get('token');
     final savedUser = box.get('user');
-
     final settingsBox = await Hive.openBox('settings');
     _quickLoginEnabled = settingsBox.get('quickLogin', defaultValue: false);
-
     if (savedToken != null && savedUser != null) {
       _token = savedToken;
       _user = Map<String, dynamic>.from(savedUser);
@@ -327,7 +333,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// --- Уведомления ---
+  // -------------------- уведомления (без изменений) --------------------
+
   Future<Map<String, dynamic>?> fetchNotifications(
       {bool archive = false}) async {
     try {
@@ -338,9 +345,7 @@ class AppState extends ChangeNotifier {
           'token': _token ?? '',
           if (archive) 'archive': '1',
         },
-        headers: {
-          'Authorization': 'Bearer ${_token ?? ''}',
-        },
+        headers: {'Authorization': 'Bearer ${_token ?? ''}'},
       );
       if (data['status'] == 'OK') return data;
     } catch (e) {
@@ -349,7 +354,6 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
-  /// --- Архивация одного уведомления ---
   Future<bool> archiveNotification(int id) async {
     try {
       final data = await _post(
@@ -360,18 +364,14 @@ class AppState extends ChangeNotifier {
           'action_open': 'archive',
           'id': '$id',
         },
-        headers: {
-          'Authorization': 'Bearer ${_token ?? ''}',
-        },
+        headers: {'Authorization': 'Bearer ${_token ?? ''}'},
       );
       return data['status'] == 'OK';
-    } catch (e) {
-      debugPrint('Ошибка архивации: $e');
+    } catch (_) {
       return false;
     }
   }
 
-  /// --- Архивация всех уведомлений ---
   Future<bool> archiveAllNotifications() async {
     try {
       final data = await _post(
@@ -381,13 +381,10 @@ class AppState extends ChangeNotifier {
           'token': _token ?? '',
           'action_open': 'alltoarchive',
         },
-        headers: {
-          'Authorization': 'Bearer ${_token ?? ''}',
-        },
+        headers: {'Authorization': 'Bearer ${_token ?? ''}'},
       );
       return data['status'] == 'OK';
-    } catch (e) {
-      debugPrint('Ошибка архивации всех: $e');
+    } catch (_) {
       return false;
     }
   }
