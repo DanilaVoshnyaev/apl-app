@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:provider/provider.dart';
-import 'app_state.dart'; // импорт своего состояния
+import 'app_state.dart';
+import '../features/header.dart';
 
 class WebContainer extends StatefulWidget {
   final String url;
@@ -30,11 +31,13 @@ class _WebContainerState extends State<WebContainer> {
       queryParameters: {
         ...Uri.parse(widget.url).queryParameters,
         'SET_LANG_ID': langId.toString(),
+        'no_header': '1'
       },
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: CustomHeader(),
+      drawer: const CustomDrawer(),
       body: Stack(
         children: [
           InAppWebView(

@@ -230,15 +230,6 @@ class _AuthPageState extends State<AuthPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              // Забыли пароль
-              TextButton(
-                onPressed: () {
-                  // переход на экран восстановления пароля
-                },
-                child: Text(
-                  app.L('forgot_password'),
-                ),
-              ),
             ],
           ),
         ),

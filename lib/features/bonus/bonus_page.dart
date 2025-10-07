@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/web_container.dart';
 import '../../core/app_state.dart';
+import '../../core/web_container.dart';
 import '../header.dart';
 
-class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+class BonusActivityPage extends StatefulWidget {
+  const BonusActivityPage({super.key});
 
   @override
-  State<MainPage> createState() => _MainPageState();
+  State<BonusActivityPage> createState() => _BonusActivityPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _BonusActivityPageState extends State<BonusActivityPage> {
   Map<String, dynamic>? bonusData;
   bool loadingBonus = true;
 
@@ -38,10 +36,7 @@ class _MainPageState extends State<MainPage> {
     if (url.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => WebContainer(
-          url: url,
-          title: title ?? 'Просмотр',
-        ),
+        builder: (_) => WebContainer(url: url, title: title ?? 'Просмотр'),
       ),
     );
   }
@@ -53,156 +48,30 @@ class _MainPageState extends State<MainPage> {
     return Scaffold(
       appBar: CustomHeader(),
       drawer: const CustomDrawer(),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Divider(height: 32),
-            // ===== НОВОСТИ =====
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                app.L('news_company'),
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: app.fetchNews(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final news = snapshot.data ?? [];
-                if (news.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(app.L('not_news')),
-                  );
-                }
-
-                return Column(
-                  children: news
-                      .map((item) => buildNewsOrPromoCard(context, item))
-                      .toList(),
-                );
-              },
-            ),
-            const Divider(height: 32),
-
-            // ===== ПРОМО =====
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                app.L('promo_company'),
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ),
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: app.fetchPromo(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final promo = snapshot.data ?? [];
-                if (promo.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(app.L('not_promo')),
-                  );
-                }
-
-                return Column(
-                  children: promo
-                      .map((item) => buildNewsOrPromoCard(context, item))
-                      .toList(),
-                );
-              },
-            ),
-            const Divider(height: 32),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget buildNewsOrPromoCard(BuildContext context, Map<String, dynamic> item) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      color: Colors.white,
-      child: InkWell(
-        onTap: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => DraggableScrollableSheet(
-            expand: false,
-            builder: (ctx, controller) => SingleChildScrollView(
-              controller: controller,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item['title'] ?? '',
-                        style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 8),
-                    CachedNetworkImage(
-                      imageUrl: "https://backoffice.aplgo.com${item["image"]}",
-                      width: double.infinity,
-                      height: 180,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          const Center(child: CircularProgressIndicator()),
-                      errorWidget: (_, __, ___) =>
-                          const Icon(Icons.broken_image),
+      body: loadingBonus
+          ? const Center(child: CircularProgressIndicator())
+          : bonusData == null
+              ? Center(child: Text(app.L('fail_load_data')))
+              : SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Column(
+                      children: [
+                        buildActivityBlock(
+                            bonusData!['this-month'], app.L('this_month')),
+                        const SizedBox(height: 12),
+                        buildActivityBlock(
+                            bonusData!['next-month'], app.L('next_month')),
+                        const SizedBox(height: 12),
+                        buildPartnersBlock(bonusData!['partners-list']),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(item['created'] ?? '',
-                        style: const TextStyle(color: Colors.grey)),
-                    const SizedBox(height: 16),
-                    Html(data: item['text'] ?? ''),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            CachedNetworkImage(
-              imageUrl: "https://backoffice.aplgo.com${item["image"]}",
-              width: double.infinity,
-              height: 180,
-              fit: BoxFit.cover,
-              placeholder: (_, __) =>
-                  const Center(child: CircularProgressIndicator()),
-              errorWidget: (_, __, ___) => const Icon(Icons.broken_image),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item['title'] ?? 'Без названия',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Text(item['created'] ?? '',
-                      style: const TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-/*  Widget buildActivityBlock(Map<String, dynamic>? monthData, String title) {
+  Widget buildActivityBlock(Map<String, dynamic>? monthData, String title) {
     if (monthData == null) return const SizedBox.shrink();
     final status = monthData['status'] == true;
     return Card(
@@ -333,6 +202,7 @@ class _MainPageState extends State<MainPage> {
         children: [
           TabBar(
             isScrollable: true,
+            labelColor: Theme.of(context).colorScheme.primary,
             tabs: sortedKeys.map((key) {
               return Tab(
                 text: key == 'all'
@@ -341,19 +211,25 @@ class _MainPageState extends State<MainPage> {
               );
             }).toList(),
           ),
+          // 👇 исправленный блок с полной высотой и нормальным скроллом
           SizedBox(
-            height: 400,
+            height: MediaQuery.of(context).size.height -
+                kToolbarHeight - // высота AppBar
+                180, // примерный запас под табы и отступы
             child: TabBarView(
               children: sortedKeys.map((key) {
                 final partners = branches[key]['list'] as List;
                 return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  // чтобы не обрезался
                   itemCount: partners.length,
                   itemBuilder: (_, i) {
                     final partner = partners[i];
                     return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       leading: CircleAvatar(
-                        backgroundImage:
-                            CachedNetworkImageProvider(partner['image']),
+                        backgroundImage: NetworkImage(partner['image']),
                       ),
                       title: Text("${partner['login']} ${partner['fio']}"),
                       subtitle: Row(
@@ -382,5 +258,5 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
     );
-  }*/
+  }
 }

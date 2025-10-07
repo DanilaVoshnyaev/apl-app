@@ -114,6 +114,7 @@ class CustomDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final app = context.read<AppState>();
     return Drawer(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -146,12 +147,16 @@ class CustomDrawer extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          _drawerItemLink(context, Icons.storefront, "Магазин",
+          _drawerItemLink(context, Icons.storefront, app.L('shop'),
               "https://stand-12.beta-dev.aplgo.com/index/partneram/buy/magazine/"),
-          _drawerItem(context, Icons.balance, "Баланс", Routes.balance),
+          _drawerItemLink(context, Icons.receipt_long, app.L('orders_history'),
+              "https://stand-12.beta-dev.aplgo.com/index/partneram/buy/history/"),
+          _drawerItem(context, Icons.balance, app.L('balance'), Routes.balance),
+          _drawerItem(context, Icons.trending_up, app.L('bonus_activity'),
+              Routes.bonus),
           ExpansionTile(
             leading: const Icon(Icons.book_outlined),
-            title: const Text("База знаний"),
+            title: Text(app.L('knowlage_base')),
             children: [
               _drawerItemLink(
                 context,
@@ -162,26 +167,20 @@ class CustomDrawer extends StatelessWidget {
               _drawerItemLink(
                 context,
                 Icons.arrow_right,
-                "Маркетинг-план",
+                app.L('marketing_plan'),
                 "https://stand-12.beta-dev.aplgo.com/index/partneram/knowledgebase/marketing-plan/",
               ),
               _drawerItemLink(
                 context,
                 Icons.arrow_right,
-                "Документы",
+                app.L('documents'),
                 "https://stand-12.beta-dev.aplgo.com/index/partneram/knowledgebase/docs/",
               ),
               _drawerItemLink(
                 context,
                 Icons.arrow_right,
-                "Обучающие видео по BackOffice",
+                app.L('study_in_backoffice'),
                 "https://stand-12.beta-dev.aplgo.com/index/partneram/knowledgebase/educational_videos/",
-              ),
-              _drawerItemLink(
-                context,
-                Icons.arrow_right,
-                "Календарь событий",
-                "https://aploffice.com/calendar/",
               ),
             ],
           ),
